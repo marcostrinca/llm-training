@@ -1,3 +1,8 @@
+# Mara family of LLMs in Brazillian Portuguese
+This is a fork from https://github.com/FareedKhan-dev/train-llm-from-scratch
+Thanks to @FareedKhan-dev for putting this together and explaining all the details.
+
+
 ![main image](https://cdn-images-1.medium.com/max/5200/1*r99Hq3YBd5FTTWLNYKKvPw.png)
 
 <div align="center">
