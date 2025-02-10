@@ -1,8 +1,11 @@
+import sys
 import torch
 import tiktoken
 import argparse
-from config.config import default_config as config
-from src.models.transformer import Transformer  # Assuming your Transformer class is in this module
+sys.path.append('/home/ubuntu/train-llm-from-scratch/config')
+from config75M import default_config as config
+sys.path.append('/home/ubuntu/train-llm-from-scratch/src')
+from models.transformer import Transformer  # Assuming your Transformer class is in this module
 
 def generate_text(model_path: str, input_text: str, max_new_tokens: int = 100, device: str = 'cuda') -> str:
     """

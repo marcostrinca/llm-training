@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from src.models.transformer_block import Block
+from models.transformer_block import Block
 
 class Transformer(nn.Module):
     """

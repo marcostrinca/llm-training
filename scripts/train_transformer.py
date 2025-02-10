@@ -1,11 +1,14 @@
 import torch
 import torch.nn.functional as F
-import os
+import os, sys
 from tqdm import tqdm
 import numpy as np
-from config.config import default_config as config
-from src.models.transformer import Transformer
-from data_loader.data_loader import get_batch_iterator
+sys.path.append('/home/ubuntu/train-llm-from-scratch/config')
+from config2b import default_config as config
+sys.path.append('/home/ubuntu/train-llm-from-scratch/src')
+from models.transformer import Transformer
+sys.path.append('/home/ubuntu/train-llm-from-scratch/data_loader')
+from data_loader import get_batch_iterator
 from typing import Dict
 
 # --- Initialize the Model and Print Parameters ---
@@ -49,6 +52,7 @@ def estimate_loss(steps: int) -> Dict[str, float]:
     model.eval()  # Set the model to evaluation mode.
 
     for split in ['train', 'dev']:
+    # for split in ['train']:
         # Select the appropriate data path for the current split.
         data_path = config['train_path'] if split == 'train' else config['dev_path']
 
@@ -75,6 +79,39 @@ def estimate_loss(steps: int) -> Dict[str, float]:
 
     model.train()  # Restore the model to training mode.
     return out
+
+# --- To save the model ---
+def save_model():
+
+# Create the output directory if it does not exist.
+    os.makedirs(config['t_out_path'].split('/')[0], exist_ok=True)
+
+# Perform a final evaluation of the model on training and development datasets.
+    evaluation_losses = estimate_loss(200)
+    train_loss = evaluation_losses['train']
+    dev_loss = evaluation_losses['dev']
+
+# Ensure unique model save path in case the file already exists.
+    modified_model_out_path = config['t_out_path']
+    # save_tries = 0
+    # while os.path.exists(modified_model_out_path):
+        # save_tries += 1
+        # model_out_name = os.path.splitext(config['t_out_path'])[0]
+        # modified_model_out_path = model_out_name + f"_{save_tries}" + ".pt"
+
+# Save the model's state dictionary, optimizer state, and training metadata.
+    torch.save(
+        {
+            'model_state_dict': model.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict(),
+            'losses': losses,
+            'train_loss': train_loss,
+            'dev_loss': dev_loss,
+            'steps': len(losses),
+        },
+        modified_model_out_path
+    )
+    print(f"Saved model to {modified_model_out_path}")
 
 # --- Training Loop ---
 
@@ -111,46 +148,21 @@ for step in pbar:
             train_loss = evaluation_losses['train']
             dev_loss = evaluation_losses['dev']
             print(f"Step: {step}, Train loss: {train_loss:.4f}, Dev loss: {dev_loss:.4f}")
+            print(f"Step: {step}, Train loss: {train_loss:.4f}, Dev loss: {dev_loss} ")
 
         # Decay the learning rate at the specified step.
         if step == config['t_lr_decay_step']:
             print('Decaying learning rate')
             for g in optimizer.param_groups:
                 g['lr'] = config['t_lr_decayed']
+        
+        # Save the model each 50k steps
+        if step % 50000 == 0:
+            save_model()
+
     except StopIteration:
         # Handle the case where the training data iterator ends early.
         print("Training data iterator finished early.")
         break
 
-# --- Save Model and Final Evaluation ---
-
-# Create the output directory if it does not exist.
-os.makedirs(config['t_out_path'].split('/')[0], exist_ok=True)
-
-# Perform a final evaluation of the model on training and development datasets.
-evaluation_losses = estimate_loss(200)
-train_loss = evaluation_losses['train']
-dev_loss = evaluation_losses['dev']
-
-# Ensure unique model save path in case the file already exists.
-modified_model_out_path = config['t_out_path']
-save_tries = 0
-while os.path.exists(modified_model_out_path):
-    save_tries += 1
-    model_out_name = os.path.splitext(config['t_out_path'])[0]
-    modified_model_out_path = model_out_name + f"_{save_tries}" + ".pt"
-
-# Save the model's state dictionary, optimizer state, and training metadata.
-torch.save(
-    {
-        'model_state_dict': model.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'losses': losses,
-        'train_loss': train_loss,
-        'dev_loss': dev_loss,
-        'steps': len(losses),
-    },
-    modified_model_out_path
-)
-print(f"Saved model to {modified_model_out_path}")
-print(f"Finished training. Train loss: {train_loss:.4f}, Dev loss: {dev_loss:.4f}")
+save_model()
