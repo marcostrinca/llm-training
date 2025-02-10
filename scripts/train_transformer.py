@@ -81,7 +81,7 @@ def estimate_loss(steps: int) -> Dict[str, float]:
     return out
 
 # --- To save the model ---
-def save_model():
+def save_model(steps):
 
 # Create the output directory if it does not exist.
     os.makedirs(config['t_out_path'].split('/')[0], exist_ok=True)
@@ -93,11 +93,8 @@ def save_model():
 
 # Ensure unique model save path in case the file already exists.
     modified_model_out_path = config['t_out_path']
-    # save_tries = 0
-    # while os.path.exists(modified_model_out_path):
-        # save_tries += 1
-        # model_out_name = os.path.splitext(config['t_out_path'])[0]
-        # modified_model_out_path = model_out_name + f"_{save_tries}" + ".pt"
+    model_out_name = os.path.splitext(config['t_out_path'])[0]
+    modified_model_out_path = model_out_name + f"_{steps}" + ".pt"
 
 # Save the model's state dictionary, optimizer state, and training metadata.
     torch.save(
@@ -158,7 +155,7 @@ for step in pbar:
         
         # Save the model each 50k steps
         if step % 50000 == 0:
-            save_model()
+            save_model(step)
 
     except StopIteration:
         # Handle the case where the training data iterator ends early.
