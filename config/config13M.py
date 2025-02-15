@@ -4,12 +4,12 @@
 VOCAB_SIZE = 50304          # Number of unique tokens in the vocabulary
 CONTEXT_LENGTH = 128        # Maximum sequence length for the model
 N_EMBED = 128              # Dimension of the embedding space
-N_HEAD = 8                 # Number of attention heads in each transformer block
-N_BLOCKS = 1               # Number of transformer blocks in the model
+N_HEAD = 4                 # Number of attention heads in each transformer block
+N_BLOCKS = 2               # Number of transformer blocks in the model
 
 # Paths to training and development datasets
-TRAIN_PATH = "data/train/pile_train_veracruz.h5"  # File path for the training dataset
-DEV_PATH = "data/val/pile_dev_veracruz.h5"      # File path for the validation dataset
+TRAIN_PATH = "data/train/pile_train_veracruz_100k.h5"  # File path for the training dataset
+DEV_PATH = "data/val/pile_val_veracruz_100k.h5"      # File path for the validation dataset
 
 # Transformer training parameters
 T_BATCH_SIZE = 32          # Number of samples per training batch
@@ -20,7 +20,7 @@ T_EVAL_ITERS = 250         # Number of iterations to evaluate the model
 T_LR_DECAY_STEP = 50000    # Step at which to decay the learning rate
 T_LR = 5e-4                # Initial learning rate for training
 T_LR_DECAYED = 5e-5        # Learning rate after decay
-T_OUT_PATH = "models/transformer_B.pt"  # Path to save the trained model
+T_OUT_PATH = "models/transformer_13M.pt"  # Path to save the trained model
 
 # Device configuration
 DEVICE = 'cuda'

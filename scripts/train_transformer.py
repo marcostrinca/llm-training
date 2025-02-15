@@ -1,34 +1,39 @@
 import torch
-import torch.nn.functional as F
 import os, sys
 from tqdm import tqdm
 import numpy as np
-sys.path.append('/home/ubuntu/train-llm-from-scratch/config')
-from config2b import default_config as config
-sys.path.append('/home/ubuntu/train-llm-from-scratch/src')
-from models.transformer import Transformer
-sys.path.append('/home/ubuntu/train-llm-from-scratch/data_loader')
+
+sys.path.append('/home/ubuntu/llm-training/config')
+from config_500k import default_config as config
+# from config13M import default_config as config
+sys.path.append('/home/ubuntu/llm-training/src')
+from models.transformer import Transformer, TransformerConfig
+sys.path.append('/home/ubuntu/llm-training/data_loader')
 from data_loader import get_batch_iterator
 from typing import Dict
 
-# --- Initialize the Model and Print Parameters ---
+from accelerate import Accelerator
+accel = Accelerator()
 
-model = Transformer(
-    n_head=config['n_head'],
-    n_embed=config['n_embed'],
-    context_length=config['context_length'],
-    vocab_size=config['vocab_size'],
-    N_BLOCKS=config['n_blocks']
-).to(config['device'])
+# --- Create the configuration ---
+t_config = TransformerConfig(
+        vocab_size = config['vocab_size'],
+        context_length = config['context_length'],
+        n_embed = config['n_embed'],
+        n_head = config['n_head'],
+        N_BLOCKS = config['n_blocks']
+        )
 
-# Print the total number of parameters
+# --- Initialize the Model and send to Accelerator ---
+model = Transformer(t_config)
 total_params = sum(p.numel() for p in model.parameters())
 print(f"Total number of parameters in the model: {total_params:,}")
+model = accel.prepare(model)
 
 # --- Optimizer Setup and Loss Tracking ---
-
-# Set up the AdamW optimizer with the specified learning rate.
+# Set up the AdamW optimizer with the specified learning rate and send to Accelerator
 optimizer = torch.optim.AdamW(model.parameters(), lr=config['t_lr'])
+optimizer = accel.prepare(optimizer)
 
 # List to track loss values during training.
 losses = []
@@ -69,6 +74,7 @@ def estimate_loss(steps: int) -> Dict[str, float]:
                 xb, yb = next(batch_iterator_eval)
                 _, loss = model(xb, yb)
                 losses_eval[k] = loss.item()
+                # losses_eval[k] = loss.sum().item() # tu support multi gpu
             except StopIteration:
                 # Handle the case where the data iterator ends early.
                 print(f"Warning: Iterator for {split} ended early.")
@@ -83,30 +89,19 @@ def estimate_loss(steps: int) -> Dict[str, float]:
 # --- To save the model ---
 def save_model(steps):
 
-# Create the output directory if it does not exist.
+    # Create the output directory if it does not exist.
     os.makedirs(config['t_out_path'].split('/')[0], exist_ok=True)
 
-# Perform a final evaluation of the model on training and development datasets.
-    evaluation_losses = estimate_loss(200)
-    train_loss = evaluation_losses['train']
-    dev_loss = evaluation_losses['dev']
-
-# Ensure unique model save path in case the file already exists.
+    # Ensure unique model save path in case the file already exists.
     modified_model_out_path = config['t_out_path']
     model_out_name = os.path.splitext(config['t_out_path'])[0]
     modified_model_out_path = model_out_name + f"_{steps}" + ".pt"
 
-# Save the model's state dictionary, optimizer state, and training metadata.
-    torch.save(
-        {
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'losses': losses,
-            'train_loss': train_loss,
-            'dev_loss': dev_loss,
-            'steps': len(losses),
-        },
-        modified_model_out_path
+    accel.unwrap_model(model).save_pretrained(
+              modified_model_out_path,
+              is_main_process=accel.is_main_process,
+              save_function=accel.save,
+              state_dict=accel.get_state_dict(model)
     )
     print(f"Saved model to {modified_model_out_path}")
 
@@ -136,7 +131,7 @@ for step in pbar:
 
         # Backpropagate the loss and update the model parameters.
         optimizer.zero_grad(set_to_none=True)
-        loss.backward()
+        accel.backward(loss)
         optimizer.step()
 
         # Periodically evaluate the model on training and development data.
@@ -144,7 +139,6 @@ for step in pbar:
             evaluation_losses = estimate_loss(config['t_eval_iters'])
             train_loss = evaluation_losses['train']
             dev_loss = evaluation_losses['dev']
-            print(f"Step: {step}, Train loss: {train_loss:.4f}, Dev loss: {dev_loss:.4f}")
             print(f"Step: {step}, Train loss: {train_loss:.4f}, Dev loss: {dev_loss} ")
 
         # Decay the learning rate at the specified step.
@@ -153,8 +147,8 @@ for step in pbar:
             for g in optimizer.param_groups:
                 g['lr'] = config['t_lr_decayed']
         
-        # Save the model each 50k steps
-        if step % 50000 == 0:
+        # Save the model each 20k steps
+        if step % 20000 == 0:
             save_model(step)
 
     except StopIteration:

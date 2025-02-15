@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 from models.attention import MultiHeadAttention
 from models.mlp import MLP
+# from transformers.modeling_utils import PreTrainedModel
 
 class Block(nn.Module):
     """

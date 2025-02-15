@@ -2,8 +2,33 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from models.transformer_block import Block
+from transformers.modeling_utils import PreTrainedModel
+from transformers import PretrainedConfig
 
-class Transformer(nn.Module):
+class TransformerConfig(PretrainedConfig):
+    model_type = "transformer"
+
+    def __init__(
+        self, 
+        context_length: int = 512,
+        vocab_size: int = 50304,
+        n_embed: int = 128,
+        n_head: int = 8,
+        N_BLOCKS: int = 2,
+        **kwargs):
+
+        self.context_length = context_length
+        self.vocab_size = vocab_size
+        self.n_embed = n_embed
+        self.n_head = n_head
+        self.N_BLOCKS = N_BLOCKS
+        super().__init__(**kwargs)
+
+
+# class Transformer(nn.Module):
+class Transformer(PreTrainedModel):
+    config_class = TransformerConfig
+
     """
     The main Transformer model.
 
@@ -17,7 +42,7 @@ class Transformer(nn.Module):
         vocab_size (int): The size of the vocabulary.
         N_BLOCKS (int): The number of transformer blocks in the model.
     """
-    def __init__(self, n_head: int, n_embed: int, context_length: int, vocab_size: int, N_BLOCKS: int) -> None:
+    def __init__(self, config) -> None:
         """
         Initializes the Transformer model.
 
@@ -28,15 +53,15 @@ class Transformer(nn.Module):
             vocab_size (int): Size of the vocabulary.
             N_BLOCKS (int): Number of transformer blocks.
         """
-        super().__init__()
-        self.context_length = context_length
-        self.N_BLOCKS = N_BLOCKS
-        self.token_embed = nn.Embedding(vocab_size, n_embed)
-        self.position_embed = nn.Embedding(context_length, n_embed)
-        self.attn_blocks = nn.ModuleList([Block(n_head, n_embed, context_length) for _ in range(N_BLOCKS)])
-        self.layer_norm = nn.LayerNorm(n_embed)
-        self.lm_head = nn.Linear(n_embed, vocab_size)
-        self.register_buffer('pos_idxs', torch.arange(context_length))
+        super().__init__(config)
+        self.context_length = config.context_length
+        self.N_BLOCKS = config.N_BLOCKS
+        self.token_embed = nn.Embedding(config.vocab_size, config.n_embed)
+        self.position_embed = nn.Embedding(config.context_length, config.n_embed)
+        self.attn_blocks = nn.ModuleList([Block(config.n_head, config.n_embed, config.context_length) for _ in range(config.N_BLOCKS)])
+        self.layer_norm = nn.LayerNorm(config.n_embed)
+        self.lm_head = nn.Linear(config.n_embed, config.vocab_size)
+        self.register_buffer('pos_idxs', torch.arange(config.context_length))
 
     def _pre_attn_pass(self, idx: torch.Tensor) -> torch.Tensor:
         """
@@ -113,24 +138,3 @@ class Transformer(nn.Module):
             idx = torch.cat((idx, idx_next), dim=1)
         return idx
 
-if __name__ == '__main__':
-    # Example Usage (optional, for testing the module independently)
-    batch_size = 2
-    sequence_length = 5
-    vocab_size = 100
-    embedding_dim = 32
-    num_heads = 4
-    num_blocks = 2
-    context_len = 5
-    input_indices = torch.randint(0, vocab_size, (batch_size, sequence_length))
-
-    transformer_model = Transformer(n_head=num_heads, n_embed=embedding_dim, context_length=context_len, vocab_size=vocab_size, N_BLOCKS=num_blocks)
-    logits, loss = transformer_model(input_indices, targets=input_indices) # Using input as target for simplicity
-
-    print("Transformer Logits Shape:", logits.shape)
-    print("Transformer Loss:", loss)
-
-    # Example of generating tokens
-    start_indices = input_indices[:, :1]  # Take the first token of each sequence as start
-    generated_tokens = transformer_model.generate(start_indices, max_new_tokens=5)
-    print("Generated Tokens Shape:", generated_tokens.shape)
