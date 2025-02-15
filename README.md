@@ -1,4 +1,29 @@
-![main image](https://cdn-images-1.medium.com/max/5200/1*r99Hq3YBd5FTTWLNYKKvPw.png)
+# Mara: a family of LLMs in Brazillian Portuguese
+
+The intention of this work is to provide all the scripts and information necessary to anyone to train Mara in her different sizes.
+
+Mara is a family of LLM models trained only in Brazilliam Portuguese. She will be available in 1.6b and 7b parameters both foundational and instruct models. The reasoning models will be also provided using the same GRPO technique used by DeepSeek-R1.
+
+The dataset we're using to train the foundational model: 
+https://huggingface.co/datasets/bastao/VeraCruz_PT-BR
+
+## ToDo
+
+- [x] Customize the data preprocessing script allowing to download a selected amount of rows from the VeraCruz_PT-BR Dataset and saving the model in the same format as the original repo
+- [x] Config for the 1.6b parameter model
+- [ ] Config for the 7b parameter model
+- [ ] To train the 1.6b parameter model
+- [ ] To train the 7b parameter model
+- [ ] Search for the best dataset to use to on the Q&A models
+- [ ] Train the instruc models
+- [ ] Write the code to use Unsloth GRPO to create the reasoning models
+- [ ] Train the reasoning models
+
+## This repository was originally a fork from https://github.com/FareedKhan-dev/train-llm-from-scratch
+Thanks to @FareedKhan-dev for his amazing work bringing this repo.
+
+Below you can see the detailed information he published on the original repos:
+
 
 <div align="center">
 
